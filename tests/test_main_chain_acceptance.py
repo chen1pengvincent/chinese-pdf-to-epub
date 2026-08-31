@@ -111,7 +111,7 @@ def _completed_book(tmp_path: Path) -> tuple[Path, dict]:
         config=config,
     )
     raw_texts = {
-        1: "# 第一章\n\n正文[^1]。集合 $A={1,2}$。\n\n[^1]: 第一页脚注",
+        1: "# 第一章\n\n正文[^1]。集合 A={1,2}。\n\n[^1]: 第一页脚注",
         2: (
             content_policy.PRESERVE_PAGE_IMAGE_MARKER
             + "\n\n# 第二章\n\n表格说明。"
@@ -161,8 +161,8 @@ def test_complete_offline_main_chain_preserves_pages_text_images_and_footnotes(t
         ]
     assert "第一章" in xhtml and "第二章" in xhtml
     assert "第一页脚注" in xhtml
-    # Pandoc 2.x may emit MathML while Pandoc 3.x may preserve inline TeX.
-    # Compare visible text rather than version-specific XHTML serialization.
+    # Verify literal braces as visible prose. TeX grouping braces are not visible
+    # delimiters, so an inline-math fixture would make this assertion ambiguous.
     assert "A={1,2}" in visible_text
     assert content_policy.PRESERVE_PAGE_IMAGE_MARKER not in xhtml
     assert len(raster_names) == 2

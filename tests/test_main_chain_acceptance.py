@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import shutil
+import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
 
@@ -143,11 +144,16 @@ def test_complete_offline_main_chain_preserves_pages_text_images_and_footnotes(t
     assert output == book / "dist/book.epub"
 
     with zipfile.ZipFile(output) as archive:
-        xhtml = b"\n".join(
+        xhtml_documents = [
             archive.read(name)
             for name in archive.namelist()
             if name.endswith(".xhtml")
-        ).decode("utf-8")
+        ]
+        xhtml = b"\n".join(xhtml_documents).decode("utf-8")
+        visible_text = "".join(
+            "".join(ET.fromstring(raw).itertext())
+            for raw in xhtml_documents
+        )
         raster_names = [
             name
             for name in archive.namelist()
@@ -155,7 +161,9 @@ def test_complete_offline_main_chain_preserves_pages_text_images_and_footnotes(t
         ]
     assert "第一章" in xhtml and "第二章" in xhtml
     assert "第一页脚注" in xhtml
-    assert "A={1,2}" in xhtml
+    # Pandoc 2.x may emit MathML while Pandoc 3.x may preserve inline TeX.
+    # Compare visible text rather than version-specific XHTML serialization.
+    assert "A={1,2}" in visible_text
     assert content_policy.PRESERVE_PAGE_IMAGE_MARKER not in xhtml
     assert len(raster_names) == 2
 

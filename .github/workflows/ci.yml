@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - name: Checkout full history without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install Poppler and Pandoc for synthetic integration tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes pandoc poppler-utils
+
+      - name: Install project
+        run: python -m pip install --disable-pip-version-check -e '.[dev]'
+
+      - name: Unit and offline integration tests
+        env:
+          OPENCODE_GO_API_KEY: ""
+          MX_APIKEY: ""
+        run: python -m pytest
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Scan worktree and distributions
+        env:
+          OPENCODE_GO_API_KEY: ""
+          MX_APIKEY: ""
+        run: python scripts/prepublish_check.py .
+
+      - name: Fresh wheel install and CLI smoke
+        env:
+          OPENCODE_GO_API_KEY: ""
+          MX_APIKEY: ""
+        run: |
+          python -m venv "$RUNNER_TEMP/fresh-wheel"
+          "$RUNNER_TEMP/fresh-wheel/bin/python" -m pip install --no-index --no-deps dist/*.whl
+          "$RUNNER_TEMP/fresh-wheel/bin/zhpdf2epub" --help
+          "$RUNNER_TEMP/fresh-wheel/bin/zhpdf2epub" build --help
+          "$RUNNER_TEMP/fresh-wheel/bin/zhpdf2epub" doctor

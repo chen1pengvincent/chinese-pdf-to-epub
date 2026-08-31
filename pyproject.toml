@@ -1,0 +1,53 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "chinese-pdf-to-epub"
+version = "0.1.0"
+description = "可审计、可恢复的中文扫描 PDF 到混合 EPUB 转换工具"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "chen1pengvincent" }]
+keywords = ["chinese", "pdf", "ocr", "epub", "opencode-go", "deepseek"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Text Processing :: Markup",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "pytest>=8.0",
+  "ruff>=0.6",
+]
+
+[project.scripts]
+zhpdf2epub = "chinese_pdf_to_epub.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/chen1pengvincent/chinese-pdf-to-epub"
+Issues = "https://github.com/chen1pengvincent/chinese-pdf-to-epub/issues"
+Source = "https://github.com/chen1pengvincent/chinese-pdf-to-epub"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chinese_pdf_to_epub"]
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]

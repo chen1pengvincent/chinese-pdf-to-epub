@@ -144,7 +144,7 @@ def build_epub(
     try:
         args = [
             "pandoc", str(input_md), "-o", str(staged),
-            "--from", _PANDOC_MARKDOWN_FORMAT, "--to", "epub", "--toc",
+            "--from", _pandoc_markdown_format(), "--to", "epub", "--toc",
             f"--toc-depth={toc_depth}", f"--split-level={split_level}",
             f"--resource-path={input_md.parent}",
         ]
@@ -211,19 +211,49 @@ _PAGE_TYPES = {"text", "chart", "complex_table", "failed", "review"}
 _OCR_STATUSES = {"ok", "blank", "failed", "missing"}
 _IMAGE_PAGE_TYPES = {"chart", "complex_table", "failed", "review"}
 _LEADING_H1 = re.compile(r"^(# [^\n]+)(?:\n+|$)(.*)$", flags=re.DOTALL)
-_PANDOC_MARKDOWN_FORMAT = (
-    "markdown+raw_html"
-    "-bracketed_spans"
-    "-fenced_divs"
-    "-header_attributes"
-    "-table_attributes"
-    "-inline_code_attributes"
-    "-fenced_code_attributes"
-    "-link_attributes"
-    "-raw_attribute"
-    "-native_divs"
-    "-native_spans"
+_UNTRUSTED_ATTRIBUTE_EXTENSIONS = frozenset(
+    {
+        "bracketed_spans",
+        "fenced_divs",
+        "header_attributes",
+        "table_attributes",
+        "inline_code_attributes",
+        "fenced_code_attributes",
+        "link_attributes",
+        "raw_attribute",
+        "native_divs",
+        "native_spans",
+    }
 )
+
+
+def _pandoc_markdown_format() -> str:
+    """Disable every attribute extension supported by the installed Pandoc.
+
+    Pandoc versions expose different extension sets (for example Ubuntu's older
+    package has no ``table_attributes`` and rejects naming it).  Querying the
+    executable prevents a compatibility failure without silently enabling a
+    newer attribute grammar.  ``raw_html`` is required only for builder-owned
+    source-page spans; model HTML has already been removed.
+    """
+    result = subprocess.run(
+        ["pandoc", "--list-extensions=markdown"],
+        capture_output=True,
+        text=True,
+        check=False,
+        env=safe_subprocess_env(),
+    )
+    if result.returncode != 0:
+        raise RuntimeError("pandoc could not report its Markdown extension set")
+    supported = {
+        line[1:].strip()
+        for line in result.stdout.splitlines()
+        if len(line) > 1 and line[0] in {"+", "-"}
+    }
+    if "raw_html" not in supported:
+        raise RuntimeError("installed pandoc does not support required raw_html anchors")
+    disabled = sorted(_UNTRUSTED_ATTRIBUTE_EXTENSIONS & supported)
+    return "markdown+raw_html" + "".join(f"-{name}" for name in disabled)
 
 
 def _validated_hybrid_pages(

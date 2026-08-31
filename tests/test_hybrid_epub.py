@@ -26,6 +26,26 @@ def _image(path: Path, marker: bytes = b"page", data: bytes | None = None) -> Pa
     return path
 
 
+def test_pandoc_format_disables_only_extensions_reported_by_installed_version(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        epub_build.subprocess,
+        "run",
+        lambda args, **_kwargs: subprocess.CompletedProcess(
+            args,
+            0,
+            "+raw_html\n+header_attributes\n+link_attributes\n",
+            "",
+        ),
+    )
+
+    value = epub_build._pandoc_markdown_format()
+
+    assert value == "markdown+raw_html-header_attributes-link_attributes"
+    assert "table_attributes" not in value
+
+
 def test_hybrid_builder_keeps_chart_and_failed_page_images(tmp_path):
     if shutil.which("pandoc") is None:
         pytest.skip("pandoc not installed")
@@ -110,6 +130,13 @@ def test_build_epub_preserves_previous_output_when_validation_fails(tmp_path, mo
     monkeypatch.setattr(epub_build.shutil, "which", lambda _name: "/tool")
 
     def fake_run(args, **_kwargs):
+        if args == ["pandoc", "--list-extensions=markdown"]:
+            return subprocess.CompletedProcess(
+                args,
+                0,
+                "+raw_html\n+header_attributes\n+table_attributes\n",
+                "",
+            )
         staged = Path(args[args.index("-o") + 1])
         staged.write_bytes(b"new-but-invalid")
         return subprocess.CompletedProcess(args, 0, "", "")

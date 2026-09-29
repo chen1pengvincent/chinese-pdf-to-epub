@@ -101,6 +101,10 @@ unset OPENCODE_GO_API_KEY
 不要把真实 Key 写进命令历史、Issue、聊天、截图或仓库。页面图像会发送给第三方视觉模型；
 运行前请确认你有权上传和转换这些内容，并自行核对服务商当前的数据保留与隐私政策。
 
+仓库根的 `.env.example` 只是变量名模板（供编辑器补全、CI 配置或人工复制时参考），
+不是运行配置：CLI 不会自动读取 `.env`，只认当前进程导出的 `OPENCODE_GO_API_KEY`。
+请保持该文件值为空，不要把真实 Key 写进去。
+
 ## 推荐工作流
 
 ### 1. 导入 PDF 并冻结源页清单
@@ -164,6 +168,16 @@ books/my-book/
 ```bash
 .venv/bin/zhpdf2epub verify ./books/my-book --require-epubcheck
 ```
+
+### 4. 可选：审计源页缺陷
+
+```bash
+.venv/bin/zhpdf2epub audit ./books/my-book
+```
+
+读取 `work/ocr/final/` 的派生文本，检查精确重复页图与近重复文字段，把报告写入
+`work/audit/source-audit.json` 并打印到终端。`audit` 只报告风险，不自动删页或补页；
+发现精确或近重复风险时退出码为 1。
 
 ## 人工修订、重新构建与导航
 
@@ -269,6 +283,10 @@ worker 观察到之前，最多可能已有 `--workers` 个请求处于队列或
 逐页 checkpoint 只保证恢复已经返回本机并完成本地持久化的结果。服务端已执行、但客户端
 尚未收到完整响应或尚未完成 checkpoint 的请求，无法被当作成功恢复；它们会按保守规则记入
 请求台账，并可能标为 `ambiguous`。
+
+恢复尝试次数可用 `--retries` 调整（取值 0–5，默认 5；`smoke` 和 `run` 均支持）：即首次
+请求 + 最多 5 次恢复尝试，跨次运行累计后每页绝对上限仍为 6 次；每次尝试在联网前记入
+`work/request-ledger.jsonl`，可逐页查证。
 
 ## 架构
 
